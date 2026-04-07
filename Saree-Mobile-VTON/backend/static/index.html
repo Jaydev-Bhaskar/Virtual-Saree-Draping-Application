@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Virtual Saree Draping — AI Try-On</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg: #0c0a14;
+            --surface: #16132a;
+            --surface2: #1e1a38;
+            --border: rgba(255,255,255,0.06);
+            --accent: #e91e63;
+            --accent-glow: rgba(233,30,99,0.35);
+            --gold: #ffd54f;
+            --text: #eee;
+            --text2: #9e9cb5;
+            --radius: 18px;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* ─── Animated Gradient BG ─── */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: radial-gradient(ellipse at 20% 0%, rgba(233,30,99,0.12) 0%, transparent 60%),
+                        radial-gradient(ellipse at 80% 100%, rgba(103,58,183,0.10) 0%, transparent 60%);
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        /* ─── Header ─── */
+        .header {
+            position: relative; z-index: 1;
+            text-align: center;
+            padding: 48px 20px 32px;
+        }
+        .header h1 {
+            font-size: 2.4rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #e91e63, #ff6090, #ffd54f);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.5px;
+        }
+        .header p {
+            color: var(--text2);
+            font-size: 1rem;
+            margin-top: 8px;
+        }
+        .badge {
+            display: inline-block;
+            margin-top: 12px;
+            padding: 5px 14px;
+            font-size: 0.72rem;
+            font-weight: 600;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            background: rgba(233,30,99,0.15);
+            border: 1px solid rgba(233,30,99,0.3);
+            border-radius: 20px;
+            color: #ff6090;
+        }
+
+        /* ─── Main Grid ─── */
+        .container {
+            position: relative; z-index: 1;
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 0 24px 60px;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+        @media (max-width: 700px) {
+            .grid { grid-template-columns: 1fr; }
+        }
+
+        /* ─── Upload Cards ─── */
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 28px;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+        .card:hover {
+            border-color: rgba(233,30,99,0.25);
+            box-shadow: 0 0 30px rgba(233,30,99,0.06);
+        }
+        .card h2 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .card h2 .num {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px; height: 28px;
+            border-radius: 50%;
+            background: var(--accent);
+            color: #fff;
+            font-size: 0.8rem;
+            font-weight: 700;
+        }
+
+        /* ─── Drop Zone ─── */
+        .drop-zone {
+            border: 2px dashed rgba(255,255,255,0.1);
+            border-radius: 14px;
+            height: 220px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: border-color 0.3s, background 0.3s;
+            position: relative;
+            overflow: hidden;
+            background: var(--surface2);
+        }
+        .drop-zone:hover {
+            border-color: var(--accent);
+            background: rgba(233,30,99,0.04);
+        }
+        .drop-zone.has-image {
+            border-color: rgba(255,213,79,0.4);
+        }
+        .drop-zone img {
+            width: 100%; height: 100%;
+            object-fit: contain;
+            border-radius: 12px;
+        }
+        .drop-zone .placeholder {
+            text-align: center;
+        }
+        .drop-zone .placeholder svg {
+            width: 42px; height: 42px;
+            stroke: var(--text2);
+            margin-bottom: 10px;
+        }
+        .drop-zone .placeholder p {
+            color: var(--text2);
+            font-size: 0.88rem;
+        }
+        .drop-zone .placeholder span {
+            color: var(--accent);
+            font-weight: 600;
+        }
+        input[type="file"] { display: none; }
+
+        /* ─── Action Button ─── */
+        .action-section {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 10px 0 0;
+        }
+        .btn-try {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 16px 48px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #fff;
+            background: linear-gradient(135deg, #e91e63, #c2185b);
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 4px 30px var(--accent-glow);
+            transition: transform 0.2s, box-shadow 0.2s;
+            letter-spacing: 0.3px;
+        }
+        .btn-try:hover:not(:disabled) {
+            transform: translateY(-2px) scale(1.02);
+            box-shadow: 0 8px 40px var(--accent-glow);
+        }
+        .btn-try:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+        }
+
+        /* ─── Loader ─── */
+        .loader-wrap {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 40px 0;
+            display: none;
+        }
+        .loader-wrap.active { display: block; }
+
+        .spinner {
+            width: 52px; height: 52px;
+            border: 4px solid rgba(255,255,255,0.08);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 16px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .loader-wrap p {
+            color: var(--text2);
+            font-size: 0.95rem;
+        }
+        .loader-wrap p strong { color: var(--accent); }
+
+        /* ─── Result ─── */
+        .result-section {
+            grid-column: 1 / -1;
+            display: none;
+        }
+        .result-section.active { display: block; }
+        .result-card {
+            background: var(--surface);
+            border: 1px solid rgba(255,213,79,0.2);
+            border-radius: var(--radius);
+            padding: 28px;
+            text-align: center;
+        }
+        .result-card h2 {
+            font-size: 1.3rem;
+            font-weight: 700;
+            margin-bottom: 20px;
+            color: var(--gold);
+        }
+        .result-card img {
+            max-width: 100%;
+            max-height: 520px;
+            border-radius: 14px;
+            box-shadow: 0 8px 40px rgba(0,0,0,0.4);
+            margin-bottom: 20px;
+        }
+        .result-actions {
+            display: flex;
+            justify-content: center;
+            gap: 14px;
+            flex-wrap: wrap;
+        }
+        .result-actions button {
+            padding: 12px 28px;
+            border-radius: 10px;
+            border: none;
+            font-weight: 600;
+            font-size: 0.92rem;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .result-actions button:hover {
+            transform: translateY(-1px);
+        }
+        .btn-download {
+            background: linear-gradient(135deg, #4caf50, #388e3c);
+            color: #fff;
+        }
+        .btn-retry {
+            background: var(--surface2);
+            color: var(--text2);
+            border: 1px solid var(--border) !important;
+        }
+
+        /* ─── Error ─── */
+        .error-msg {
+            grid-column: 1 / -1;
+            background: rgba(244,67,54,0.1);
+            border: 1px solid rgba(244,67,54,0.3);
+            border-radius: 12px;
+            color: #ef9a9a;
+            padding: 16px 20px;
+            text-align: center;
+            font-size: 0.92rem;
+            display: none;
+        }
+        .error-msg.active { display: block; }
+
+        /* ─── Subtle particle float (decorative) ─── */
+        .floater {
+            position: fixed;
+            width: 6px; height: 6px;
+            border-radius: 50%;
+            background: rgba(233,30,99,0.25);
+            animation: float 8s ease-in-out infinite;
+            pointer-events: none;
+            z-index: 0;
+        }
+        .floater:nth-child(2) { left: 15%; top: 30%; animation-delay: -2s; width: 4px; height: 4px; background: rgba(103,58,183,0.2); }
+        .floater:nth-child(3) { left: 85%; top: 20%; animation-delay: -4s; }
+        .floater:nth-child(4) { left: 70%; top: 70%; animation-delay: -6s; width: 8px; height: 8px; background: rgba(255,213,79,0.15); }
+        @keyframes float {
+            0%, 100% { transform: translateY(0) scale(1); opacity: 0.5; }
+            50% { transform: translateY(-30px) scale(1.3); opacity: 1; }
+        }
+
+        /* ─── Footer ─── */
+        .footer {
+            position: relative; z-index: 1;
+            text-align: center;
+            padding: 30px;
+            color: var(--text2);
+            font-size: 0.78rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="floater" style="left:10%;top:15%"></div>
+    <div class="floater"></div>
+    <div class="floater"></div>
+    <div class="floater"></div>
+
+    <header class="header">
+        <h1>✨ Virtual Saree Draping</h1>
+        <p>AI-powered photorealistic saree try-on using IDM-VTON</p>
+        <div class="badge">Powered by IDM-VTON · DensePose · CP-VTON Architecture</div>
+    </header>
+
+    <main class="container">
+        <div class="grid">
+
+            <!-- Upload: User Photo -->
+            <div class="card">
+                <h2><span class="num">1</span> Your Photo</h2>
+                <div class="drop-zone" id="userDrop" onclick="document.getElementById('userFile').click()">
+                    <div class="placeholder" id="userPlaceholder">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.5 20.25a8.25 8.25 0 0115 0" /></svg>
+                        <p>Click to upload <span>your photo</span></p>
+                    </div>
+                </div>
+                <input type="file" id="userFile" accept="image/*">
+            </div>
+
+            <!-- Upload: Saree -->
+            <div class="card">
+                <h2><span class="num">2</span> Saree Image</h2>
+                <div class="drop-zone" id="sareeDrop" onclick="document.getElementById('sareeFile').click()">
+                    <div class="placeholder" id="sareePlaceholder">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0022.5 18.75V5.25A2.25 2.25 0 0020.25 3H3.75A2.25 2.25 0 001.5 5.25v13.5A2.25 2.25 0 003.75 21z" /></svg>
+                        <p>Click to upload <span>saree image</span></p>
+                    </div>
+                </div>
+                <input type="file" id="sareeFile" accept="image/*">
+            </div>
+
+            <!-- Try-On Button -->
+            <div class="action-section">
+                <button class="btn-try" id="btnTry" disabled onclick="performTryOn()">
+                    ✨ Apply Virtual Try-On
+                </button>
+            </div>
+
+            <!-- Loader -->
+            <div class="loader-wrap" id="loader">
+                <div class="spinner"></div>
+                <p><strong>IDM-VTON</strong> is draping the saree…</p>
+                <p style="margin-top:6px;font-size:0.82rem;color:#666">This may take 15–60 seconds on the free HuggingFace server</p>
+            </div>
+
+            <!-- Error -->
+            <div class="error-msg" id="errorBox"></div>
+
+            <!-- Result -->
+            <div class="result-section" id="resultSection">
+                <div class="result-card">
+                    <h2>🎉 Your Virtual Try-On Result</h2>
+                    <img id="resultImage" src="" alt="Virtual Try-On Result">
+                    <div class="result-actions">
+                        <button class="btn-download" onclick="downloadResult()">⬇ Save Image</button>
+                        <button class="btn-retry" onclick="resetAll()">↻ Try Another</button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <footer class="footer">
+        Virtual Saree Draping Application &middot; Problem Statement SO-3 &middot; IDM-VTON + DensePose AI Engine
+    </footer>
+
+    <script>
+        const userDrop = document.getElementById('userDrop');
+        const sareeDrop = document.getElementById('sareeDrop');
+        const userFile = document.getElementById('userFile');
+        const sareeFile = document.getElementById('sareeFile');
+        const btnTry = document.getElementById('btnTry');
+        const loader = document.getElementById('loader');
+        const errorBox = document.getElementById('errorBox');
+        const resultSection = document.getElementById('resultSection');
+        const resultImage = document.getElementById('resultImage');
+
+        let userImg = null;
+        let sareeImg = null;
+        let resultBlobUrl = null;
+
+        function handleFileSelect(input, dropZone, placeholderId, type) {
+            input.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                if (type === 'user') userImg = file;
+                else sareeImg = file;
+
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    dropZone.innerHTML = `<img src="${ev.target.result}" alt="${type}">`;
+                    dropZone.classList.add('has-image');
+                    checkReady();
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        handleFileSelect(userFile, userDrop, 'userPlaceholder', 'user');
+        handleFileSelect(sareeFile, sareeDrop, 'sareePlaceholder', 'saree');
+
+        function checkReady() {
+            btnTry.disabled = !(userImg && sareeImg);
+        }
+
+        async function performTryOn() {
+            if (!userImg || !sareeImg) return;
+
+            btnTry.disabled = true;
+            loader.classList.add('active');
+            errorBox.classList.remove('active');
+            resultSection.classList.remove('active');
+
+            const formData = new FormData();
+            formData.append('user_image', userImg);
+            formData.append('saree_image', sareeImg);
+            formData.append('pallu_length', '0.6');
+            formData.append('pleats_alignment', 'center');
+
+            try {
+                const resp = await fetch('/api/v1/try-on', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!resp.ok) {
+                    const errText = await resp.text();
+                    throw new Error(errText || `Server responded ${resp.status}`);
+                }
+
+                const blob = await resp.blob();
+                if (resultBlobUrl) URL.revokeObjectURL(resultBlobUrl);
+                resultBlobUrl = URL.createObjectURL(blob);
+                resultImage.src = resultBlobUrl;
+                resultSection.classList.add('active');
+
+            } catch (err) {
+                console.error(err);
+                errorBox.textContent = `Error: ${err.message}. Ensure the backend is running.`;
+                errorBox.classList.add('active');
+            } finally {
+                loader.classList.remove('active');
+                btnTry.disabled = false;
+            }
+        }
+
+        function downloadResult() {
+            if (!resultBlobUrl) return;
+            const a = document.createElement('a');
+            a.href = resultBlobUrl;
+            a.download = 'saree_tryon_result.jpg';
+            a.click();
+        }
+
+        function resetAll() {
+            userImg = null;
+            sareeImg = null;
+            userDrop.innerHTML = `<div class="placeholder" id="userPlaceholder">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.5 20.25a8.25 8.25 0 0115 0" /></svg>
+                <p>Click to upload <span>your photo</span></p></div>`;
+            sareeDrop.innerHTML = `<div class="placeholder" id="sareePlaceholder">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0022.5 18.75V5.25A2.25 2.25 0 0020.25 3H3.75A2.25 2.25 0 001.5 5.25v13.5A2.25 2.25 0 003.75 21z" /></svg>
+                <p>Click to upload <span>saree image</span></p></div>`;
+            userDrop.classList.remove('has-image');
+            sareeDrop.classList.remove('has-image');
+            resultSection.classList.remove('active');
+            errorBox.classList.remove('active');
+            btnTry.disabled = true;
+            userFile.value = '';
+            sareeFile.value = '';
+        }
+    </script>
+</body>
+</html>

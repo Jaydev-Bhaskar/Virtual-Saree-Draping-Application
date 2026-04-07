@@ -1,0 +1,10 @@
+{
+  "name": "avinython-app",
+  "version": "1.0.0",
+  "description": "Root package manager for Saree application",
+  "scripts": {
+    "dev:frontend": "cd Virtual-Saree-Draping-Application/frontend && npm run dev",
+    "dev:backend": "cd Virtual-Saree-Draping-Application/backend && venv2\\Scripts\\uvicorn app.main:app --host 0.0.0.0 --port 10000 --reload",
+    "dev": "npx concurrently \"npm run dev:backend\" \"npm run dev:frontend\""
+  }
+}
