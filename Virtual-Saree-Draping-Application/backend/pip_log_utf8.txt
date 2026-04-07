@@ -1,0 +1,150 @@
+﻿Collecting fastapi (from -r requirements.txt (line 1))
+  Using cached fastapi-0.135.3-py3-none-any.whl.metadata (28 kB)
+Collecting uvicorn (from -r requirements.txt (line 2))
+  Using cached uvicorn-0.44.0-py3-none-any.whl.metadata (6.7 kB)
+Collecting motor (from -r requirements.txt (line 3))
+  Using cached motor-3.7.1-py3-none-any.whl.metadata (21 kB)
+Collecting pymongo (from -r requirements.txt (line 4))
+  Using cached pymongo-4.16.0-cp313-cp313-win_amd64.whl.metadata (10.0 kB)
+Collecting bcrypt (from -r requirements.txt (line 7))
+  Using cached bcrypt-5.0.0-cp39-abi3-win_amd64.whl.metadata (10 kB)
+Collecting python-multipart==0.0.9 (from -r requirements.txt (line 8))
+  Using cached python_multipart-0.0.9-py3-none-any.whl.metadata (2.5 kB)
+Collecting python-dotenv==1.0.1 (from -r requirements.txt (line 9))
+  Using cached python_dotenv-1.0.1-py3-none-any.whl.metadata (23 kB)
+Collecting pydantic==2.6.1 (from pydantic[email]==2.6.1->-r requirements.txt (line 10))
+  Using cached pydantic-2.6.1-py3-none-any.whl.metadata (83 kB)
+Collecting pydantic-settings==2.1.0 (from -r requirements.txt (line 11))
+  Using cached pydantic_settings-2.1.0-py3-none-any.whl.metadata (2.9 kB)
+Collecting aiofiles==23.2.1 (from -r requirements.txt (line 12))
+  Using cached aiofiles-23.2.1-py3-none-any.whl.metadata (9.7 kB)
+Collecting Pillow==10.2.0 (from -r requirements.txt (line 13))
+  Using cached pillow-10.2.0.tar.gz (46.2 MB)
+  Installing build dependencies: started
+  Installing build dependencies: finished with status 'done'
+  Getting requirements to build wheel: started
+  Getting requirements to build wheel: finished with status 'error'
+.\venv2\Scripts\python :  
+ error: subprocess-exited-
+with-error
+At line:1 char:95
++ ... n\backend"; 
+.\venv2\Scripts\python -m 
+pip install -r 
+requirements.txt ...
++                 ~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo        
+      : NotSpecified: (   
+   error: subprocess-ex   
+ ited-with-error:Strin    
+g) [], RemoteExceptio    n
+    + FullyQualifiedError 
+   Id : NativeCommandErr  
+  or
+ 
+  
+  Getting requirements to 
+build wheel did not run 
+successfully.
+  exit code: 1
+  
+  [21 lines of output]
+  Traceback (most recent 
+call last):
+    File "C:\Users\HP\Desk
+top\Avinython\Virtual-Sare
+e-Draping-Application\back
+end\venv2\Lib\site-package
+s\pip\_vendor\pyproject_ho
+oks\_in_process\_in_proces
+s.py", line 353, in 
+<module>
+      main()
+      ~~~~^^
+    File "C:\Users\HP\Desk
+top\Avinython\Virtual-Sare
+e-Draping-Application\back
+end\venv2\Lib\site-package
+s\pip\_vendor\pyproject_ho
+oks\_in_process\_in_proces
+s.py", line 335, in main
+      
+json_out['return_val'] = h
+ook(**hook_input['kwargs']
+)
+                          
+     ~~~~^^^^^^^^^^^^^^^^^
+^^^^^^^
+    File "C:\Users\HP\Desk
+top\Avinython\Virtual-Sare
+e-Draping-Application\back
+end\venv2\Lib\site-package
+s\pip\_vendor\pyproject_ho
+oks\_in_process\_in_proces
+s.py", line 118, in get_re
+quires_for_build_wheel
+      return 
+hook(config_settings)
+    File "C:\Users\HP\AppD
+ata\Local\Temp\pip-build-e
+nv-3cw4vhrv\overlay\Lib\si
+te-packages\setuptools\bui
+ld_meta.py", line 333, in 
+get_requires_for_build_whe
+el
+      return self._get_bui
+ld_requires(config_setting
+s, requirements=[])
+             ~~~~~~~~~~~~~
+~~~~~~~~~~~^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^
+    File "C:\Users\HP\AppD
+ata\Local\Temp\pip-build-e
+nv-3cw4vhrv\overlay\Lib\si
+te-packages\setuptools\bui
+ld_meta.py", line 301, in 
+_get_build_requires
+      self.run_setup()
+      ~~~~~~~~~~~~~~^^
+    File "C:\Users\HP\AppD
+ata\Local\Temp\pip-build-e
+nv-3cw4vhrv\overlay\Lib\si
+te-packages\setuptools\bui
+ld_meta.py", line 317, in 
+run_setup
+      exec(code, locals())
+      ~~~~^^^^^^^^^^^^^^^^
+    File "<string>", line 
+31, in <module>
+    File "<string>", line 
+28, in get_version
+  KeyError: '__version__'
+  [end of output]
+  
+  note: This error 
+originates from a 
+subprocess, and is likely 
+not a problem with pip.
+
+[notice] A new release of 
+pip is available: 24.2 -> 
+26.0.1
+[notice] To update, run: 
+python.exe -m pip install 
+--upgrade pip
+error: subprocess-exited-w
+ith-error
+
+Getting requirements to 
+build wheel did not run 
+successfully.
+exit code: 1
+
+See above for output.
+
+note: This error 
+originates from a 
+subprocess, and is likely 
+not a problem with pip.
