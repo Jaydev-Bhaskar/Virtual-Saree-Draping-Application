@@ -114,11 +114,19 @@ async def quick_swap(
     # 5. Process using the advanced pipeline!
     try:
         swapper = PhotorealisticFaceSwap()
-        success = swapper.align_and_swap(temp_user_path, saree_path, out_path)
+        success, face_box = swapper.align_and_swap(temp_user_path, saree_path, out_path)
         if not success:
             raise Exception("Seamless cloning math failed internally")
             
-        return {"url": f"/uploads/tryon/{out_filename}"}
+        # 6. Generate Saree Mask for color customization with face exclusion
+        from app.services.mask_generator import saree_mask_generator
+        mask = saree_mask_generator.generate_mask(out_path, face_box=face_box)
+        mask_b64 = saree_mask_generator.mask_to_base64(mask) if mask is not None else None
+            
+        return {
+            "url": f"/uploads/tryon/{out_filename}",
+            "mask": mask_b64
+        }
     except Exception as e:
         import traceback
         error_details = traceback.format_exc()

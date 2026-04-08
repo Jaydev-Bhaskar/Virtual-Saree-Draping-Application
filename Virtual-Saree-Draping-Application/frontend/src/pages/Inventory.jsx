@@ -9,6 +9,9 @@ const MOCK_ITEMS = [
   { id: 4, name: 'Lavender Chiffon', price: '₹6,499', type: 'Saree', description: 'Fluid and romantic, this Lavender Chiffon saree drapes beautifully around your silhouette. Finished with a minimalist sequin border for subtle nighttime glamour.', img: '/images/lavender_chiffon.png' },
   { id: 5, name: 'Golden Georgette', price: '₹9,999', type: 'Saree', description: 'Rich Golden Georgette fabric that offers effortless drape and subtle sheen. Handcrafted with meticulous gota patti work for a luxurious festive touch.', img: '/images/golden_georgette.png' },
   { id: 6, name: 'Magenta Silk', price: '₹14,999', type: 'Saree', description: 'A vibrant Magenta pure silk drape that commands attention. Featuring an elaborate woven pallu and a classic smooth finish for traditional celebrations.', img: '/images/magenta_silk.png' },
+  { id: 7, name: 'Midnight Velvet', price: '₹16,799', type: 'Saree', description: 'Exquisite deep navy velvet saree adorned with intricate silver hand-embroidery. A regal choice for winter weddings and evening galas.', img: '/images/midnight_velvet.png' },
+  { id: 8, name: 'Pastel Peach Net', price: '₹11,299', type: 'Saree', description: 'Ethereal peach net saree featuring delicate shimmering floral sequins and a thin champagne border. Light as air and perfect for summer celebrations.', img: '/images/peach_net.png' },
+  { id: 9, name: 'Turquoise Patola Silk', price: '₹22,500', type: 'Saree', description: 'A vibrant Turquoise traditional Patola silk saree from Gujarat. Boasts hand-woven geometric patterns and a rich gold zari border.', img: '/images/turquoise_patola.png' },
 ];
 
 const Inventory = () => {

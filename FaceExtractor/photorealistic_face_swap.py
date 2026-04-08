@@ -111,13 +111,13 @@ class PhotorealisticFaceSwap:
             )
         except Exception as e:
             print(f"Blending failure: {e}")
-            return False
+            return False, None
 
         # 7. Save and Return
         os.makedirs(os.path.dirname(out_path), exist_ok=True)
         cv2.imwrite(out_path, output)
         print(f"Swap result saved to: {out_path}")
-        return True
+        return True, dst_box
 
 
 if __name__ == "__main__":
