@@ -30,7 +30,7 @@ def setup_logging():
     root_logger.addHandler(console_handler)
 
     # Suppress noisy loggers
-    logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
+    logging.getLogger("uvicorn.access").setLevel(logging.INFO)
     logging.getLogger("motor").setLevel(logging.WARNING)
 
     logger = logging.getLogger(__name__)

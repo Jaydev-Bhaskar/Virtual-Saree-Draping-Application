@@ -1,53 +1,69 @@
 import cv2
 import numpy as np
-import mediapipe as mp
 import os
 
 class PhotorealisticFaceSwap:
     def __init__(self):
         """
-        Initializes the MediaPipe Face Mesh model.
-        This provides 468 3D facial landmarks for immense precision.
+        Initializes the robust OpenCV Cascade Classifiers.
+        This provides a highly compatible and stable face/eye detection system.
         """
-        self.mp_face_mesh = mp.solutions.face_mesh
-        self.face_mesh = self.mp_face_mesh.FaceMesh(
-            static_image_mode=True, 
-            max_num_faces=1, 
-            refine_landmarks=True, 
-            min_detection_confidence=0.5
-        )
+        self.face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+        self.eye_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_eye.xml')
 
-    def get_landmarks(self, image):
-        """Extracts 468 precise facial landmarks."""
-        rgb_img = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        results = self.face_mesh.process(rgb_img)
+    def find_landmarks_cascade(self, image):
+        """Extracts key landmarks (eyes) using Haar Cascades."""
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        faces = self.face_cascade.detectMultiScale(gray, 1.3, 5)
         
-        if not results.multi_face_landmarks:
-            return None
+        if len(faces) == 0:
+            return None, None
             
-        h, w, _ = image.shape
-        landmarks = []
-        for lm in results.multi_face_landmarks[0].landmark:
-            landmarks.append([int(lm.x * w), int(lm.y * h)])
-        return np.array(landmarks, dtype=np.int32)
+        # Get the largest face
+        f_x, f_y, f_w, f_h = max(faces, key=lambda f: f[2] * f[3])
+        face_roi_gray = gray[f_y:f_y+f_h, f_x:f_x+f_w]
         
-    def get_face_mask(self, image, landmarks):
-        """Creates a precise polygon mask using the anatomical contour of the face."""
-        # Calculate the convex hull of *all* facial landmarks
-        # This naturally traces the exact jawline, brow, and cheek structure (NO CIRCLES!)
-        convex_hull = cv2.convexHull(landmarks)
+        # Detect eyes within the face ROI
+        eyes = self.eye_cascade.detectMultiScale(face_roi_gray)
+        if len(eyes) < 2:
+            # Fallback: estimate eye positions if not detected
+            # Typically eyes are at 1/3 and 2/3 width, 1/3 height of the face box
+            left_eye = [int(f_x + f_w * 0.3), int(f_y + f_h * 0.35)]
+            right_eye = [int(f_x + f_w * 0.7), int(f_y + f_h * 0.35)]
+        else:
+            # Sort eyes by x coordinate
+            eyes = sorted(eyes, key=lambda e: e[0])
+            left_eye = [f_x + eyes[0][0] + eyes[0][2]//2, f_y + eyes[0][1] + eyes[0][3]//2]
+            right_eye = [f_x + eyes[1][0] + eyes[1][2]//2, f_y + eyes[1][1] + eyes[1][3]//2]
+            
+        # Estimated nose tip (midpoint between eyes, shifted down)
+        mid_x = (left_eye[0] + right_eye[0]) // 2
+        mid_y = (left_eye[1] + right_eye[1]) // 2
+        dist = np.sqrt((left_eye[0]-right_eye[0])**2 + (left_eye[1]-right_eye[1])**2)
+        nose = [mid_x, int(mid_y + dist * 0.4)]
+        
+        # Return landmarks and face bounding box
+        landmarks = np.float32([left_eye, right_eye, nose])
+        return landmarks, (f_x, f_y, f_w, f_h)
+        
+    def get_face_mask(self, image, face_bbox):
+        """Creates an elliptical/anatomic face mask."""
+        x, y, w, h = face_bbox
         mask = np.zeros(image.shape[:2], dtype=np.uint8)
-        cv2.fillConvexPoly(mask, convex_hull, 255)
         
-        # Erode mask slightly (by 5-10 pixels) so we don't accidentally grab background edges
-        kernel = np.ones((7,7), np.uint8)
-        mask = cv2.erode(mask, kernel, iterations=1)
-        return mask, convex_hull
+        # Draw an filled ellipse that covers the face region
+        # This provides a smooth, natural-looking boundary for the blend
+        center = (x + w // 2, y + h // 2)
+        axes = (int(w * 0.42), int(h * 0.55))
+        cv2.ellipse(mask, center, axes, 0, 0, 360, 255, -1)
+        
+        # Further feather the mask edges
+        mask = cv2.GaussianBlur(mask, (31, 31), 15)
+        return mask
 
     def align_and_swap(self, src_path, dst_path, out_path):
         """
-        Aligns the face via Affine Transform, isolates it via exact contour masking, 
-        and blends it onto the Saree body.
+        Robustly aligns and swaps faces using Affine Transform and Seamless Cloning.
         """
         src_img = cv2.imread(src_path)
         dst_img = cv2.imread(dst_path)
@@ -55,51 +71,37 @@ class PhotorealisticFaceSwap:
         if src_img is None or dst_img is None:
             raise ValueError("Error loading source or destination image")
 
-        # 1. Get 468 landmarks for both source (user) & target (saree model)
-        src_landmarks = self.get_landmarks(src_img)
-        dst_landmarks = self.get_landmarks(dst_img)
+        # 1. Get landmarks and face boxes
+        src_lms, src_box = self.find_landmarks_cascade(src_img)
+        dst_lms, dst_box = self.find_landmarks_cascade(dst_img)
 
-        if src_landmarks is None or dst_landmarks is None:
-            raise RuntimeError("Could not detect face landmarks in one or both images")
+        if src_lms is None or dst_lms is None:
+            raise RuntimeError("Face detection failed! Ensure both images have clear front-facing faces.")
 
-        # 2. Select Alignment Points for Affine Transform
-        # Indexes: 33 = Left Eye corner, 263 = Right Eye corner, 1 = Nose tip
-        align_indices = [33, 263, 1]
-        src_pts = np.float32([src_landmarks[i] for i in align_indices])
-        dst_pts = np.float32([dst_landmarks[i] for i in align_indices])
+        # 2. Calculate Affine Transformation Matrix
+        affine_matrix = cv2.getAffineTransform(src_lms, dst_lms)
 
-        # 3. Calculate Affine Transformation Matrix
-        affine_matrix = cv2.getAffineTransform(src_pts, dst_pts)
-
-        # 4. Warp the Source Image
-        # This literally tilts and scales the user's face until the eyes and nose 
-        # perfectly overlap the saree model's eyes and nose.
+        # 3. Warp the Source Image
         h_dst, w_dst = dst_img.shape[:2]
         warped_src = cv2.warpAffine(
             src_img, affine_matrix, (w_dst, h_dst), 
             flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_REFLECT_101
         )
 
-        # 5. Create Natural Anatomic Face Mask & Warp It
-        src_mask, _ = self.get_face_mask(src_img, src_landmarks)
+        # 4. Create and Warp Face Mask
+        src_mask = self.get_face_mask(src_img, src_box)
         warped_mask = cv2.warpAffine(src_mask, affine_matrix, (w_dst, h_dst))
-        
-        # Apply a Gaussian blur to the mask to feather the edges. 
-        # This is CRITICAL to avoiding hard, sticker-like boundary lines!
-        warped_mask = cv2.GaussianBlur(warped_mask, (15, 15), 10)
+        warped_mask = cv2.GaussianBlur(warped_mask, (15, 15), 10) # Feather edges
 
-        # 6. Find Destination Center
-        # Calculate exactly where the face belongs in the destination image
-        dst_mask, dst_hull = self.get_face_mask(dst_img, dst_landmarks)
-        x, y, w, h = cv2.boundingRect(dst_hull)
-        center_target = (x + w // 2, y + h // 2)
+        # 5. Calculate Center for Seamless Clone
+        dx, dy, dw, dh = dst_box
+        center_target = (dx + dw // 2, dy + dh // 2)
 
-        # Expand mask to 3 channels for robust seamlessClone operation
-        warped_mask_3c = cv2.cvtColor(warped_mask, cv2.COLOR_GRAY2BGR)
-
-        # 7. Apply OpenCV Seamless Clone (Poisson Blending)
-        # NORMAL_CLONE completely replaces texture while matching tone/brightness to surroundings
+        # 6. Apply OpenCV Seamless Clone (Poisson Blending)
         try:
+            # We use a 3-channel version of the mask for the operation
+            warped_mask_3c = cv2.cvtColor(warped_mask, cv2.COLOR_GRAY2BGR)
+            
             output = cv2.seamlessClone(
                 warped_src, 
                 dst_img, 
@@ -108,19 +110,16 @@ class PhotorealisticFaceSwap:
                 cv2.NORMAL_CLONE 
             )
         except Exception as e:
-            print(f"Error during seamless clone boundary processing: {e}")
+            print(f"Blending failure: {e}")
             return False
 
-        # Save Photorealistic Output
+        # 7. Save and Return
         os.makedirs(os.path.dirname(out_path), exist_ok=True)
         cv2.imwrite(out_path, output)
-        print(f"Success! Photorealistic aligned swap saved to {out_path}")
+        print(f"Swap result saved to: {out_path}")
         return True
 
 
 if __name__ == "__main__":
     swapper = PhotorealisticFaceSwap()
-    print("Anti-Gravity Photorealistic Pipeline Ready.")
-    
-    # Example execution
-    # swapper.align_and_swap("dataset/face.jpg", "dataset/body.jpg", "outputs/photorealistic_final.jpg")
+    print("Anti-Gravity Robust CV2 Swapper Ready.")

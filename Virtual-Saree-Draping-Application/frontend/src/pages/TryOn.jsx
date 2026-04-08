@@ -53,7 +53,7 @@ const TryOn = () => {
         formData.append('user_image', blob, 'user_photo.jpg');
         formData.append('saree_image_path', selectedSaree.img);
 
-        const response = await fetch('http://localhost:10000/api/v1/try-on/quick-swap', {
+        const response = await fetch('http://127.0.0.1:8000/api/v1/try-on/quick-swap', {
             method: 'POST',
             body: formData,
         });
@@ -61,7 +61,7 @@ const TryOn = () => {
         if (!response.ok) throw new Error("Backend pipeline failed");
         
         const data = await response.json();
-        setFinalImage(`http://localhost:10000${data.url}`);
+        setFinalImage(`http://127.0.0.1:8000${data.url}`);
     } catch (e) {
         console.error("Backend unavailable.", e);
         setFinalImage(null);
@@ -178,7 +178,7 @@ const TryOn = () => {
                            zIndex: 10
                          }}>
                            <h3 className="m-0 text-white font-bold text-center text-danger">Backend Connection Error</h3>
-                           <p className="text-white text-sm text-center mt-2 mx-0 mb-0">Check FastAPI logs on port 10000.</p>
+                           <p className="text-white text-sm text-center mt-2 mx-0 mb-0">Check FastAPI logs on port 8000.</p>
                          </div>
                        </>
                     )}

@@ -83,11 +83,6 @@ async def quick_swap(
     extractor_path = r"c:\Users\HP\Desktop\Avinython\FaceExtractor"
     if extractor_path not in sys.path:
         sys.path.append(extractor_path)
-    
-    # Inject working venv site-packages to find mediapipe
-    sm_vton_packages = r"c:\Users\HP\Desktop\Avinython\Saree-Mobile-VTON\backend\venv\Lib\site-packages"
-    if sm_vton_packages not in sys.path:
-        sys.path.insert(0, sm_vton_packages)
         
     try:
         from photorealistic_face_swap import PhotorealisticFaceSwap
@@ -105,7 +100,7 @@ async def quick_swap(
     saree_path = saree_image_path.lstrip("/")
     if "images/" in saree_path:
         # Resolve from frontend public folder since that's where the target apparel lives
-        saree_path = f"../Virtual-Saree-Draping-Application/frontend/public/{saree_path}"
+        saree_path = f"../frontend/public/{saree_path}"
         
     if not os.path.exists(saree_path):
         raise HTTPException(status_code=400, detail=f"Target Saree image not found locally: {saree_path}")
@@ -125,7 +120,9 @@ async def quick_swap(
             
         return {"url": f"/uploads/tryon/{out_filename}"}
     except Exception as e:
-        logger.error(f"Quick swap failed: {e}")
+        import traceback
+        error_details = traceback.format_exc()
+        logger.error(f"Quick swap failed: {e}\n{error_details}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

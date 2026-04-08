@@ -28,7 +28,7 @@ const Login = () => {
         // Create an automatic username from the email prefix
         const username = email.split('@')[0] + Math.floor(Math.random() * 1000);
         
-        const response = await fetch('http://localhost:10000/api/v1/auth/signup', {
+        const response = await fetch('http://127.0.0.1:8000/api/v1/auth/signup', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -54,7 +54,7 @@ const Login = () => {
         formData.append('username', email); // Matches backend identifier
         formData.append('password', password);
         
-        const response = await fetch('http://localhost:10000/api/v1/auth/login', {
+        const response = await fetch('http://127.0.0.1:8000/api/v1/auth/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
           body: formData
