@@ -26,6 +26,7 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFilter, ImageEnhance
 
 from app.core.config import settings
+from app.core.database import database
 from app.services.external_tryon_api import external_tryon_api
 
 logger = logging.getLogger(__name__)
@@ -98,6 +99,62 @@ class TryOnEngineService:
         total_time = int((time.time() - start_time) * 1000)
         logger.info(f"Try-on completed: {len(results)} items in {total_time}ms")
         return results
+
+    async def generate_suggestion(self, user_image_path: str, occasion: str) -> dict:
+        """
+        Suggests a real saree from the inventory based on occasion and performs a real try-on.
+        """
+        # 1. Search for real sarees in inventory matching the occasion
+        cursor = database.db.clothing.find({
+            "occasion": occasion.lower(),
+            "type": "saree"
+        })
+        items = await cursor.to_list(length=30)
+        
+        if not items:
+            # Fallback: find any high-quality saree if specific occasion is empty
+            cursor = database.db.clothing.find({"type": "saree"})
+            items = await cursor.to_list(length=10)
+        
+        if not items:
+            raise Exception("No sarees found in inventory. Please add some in the Admin section!")
+            
+        # 2. Pick a random saree from the warehouse
+        selected_item = random.choice(items)
+        
+        # Use local path if available, else derive from url
+        saree_path = selected_item.get("file_path") or selected_item.get("image_url", "")
+        if saree_path.startswith('/'): saree_path = saree_path[1:]
+        
+        logger.info(f"Suggestion: Draping real saree '{selected_item['name']}' for {occasion}")
+        
+        # 3. Create unique output path
+        output_dir = os.path.join("uploads", "suggestions")
+        os.makedirs(output_dir, exist_ok=True)
+        filename = f"suggestion_{uuid.uuid4().hex}.png"
+        output_path = os.path.join(output_dir, filename)
+
+        # 4. Trigger the REAL try-on pipeline (Supports All AI Fallbacks)
+        try:
+            generated_url = await self._run_tryon(
+                user_image_path=user_image_path,
+                clothing=selected_item
+            )
+            
+            if not generated_url:
+                raise Exception("Draping engine returned empty result.")
+
+            return {
+                "occasion": occasion.capitalize(),
+                "color": selected_item.get("color", "Store Exclusive"),
+                "fabric": selected_item.get("description", "Premium Silk/Fabric")[:40] + "...",
+                "style": selected_item.get("name"),
+                "image_url": generated_url,
+                "prompt": f"Real Saree Try-On: {selected_item['name']}"
+            }
+        except Exception as e:
+            logger.error(f"Draping Pipeline Error: {e}")
+            raise Exception("AI Draping failed. Our stylists are working to fix it!")
 
     async def generate_comparison(
         self, user_image_path: str, clothing_items: List[dict]
@@ -681,6 +738,77 @@ class TryOnEngineService:
         if r>=7.5: return f"Great option! {n} works well for {o} occasions."
         if r>=6: return f"Good match. {n} is suitable for {o} settings."
         return f"{n} is worth considering for {o} events."
+
+
+    async def _generate_from_prompt(self, user_image_path: str, prompt: str, output_path: str) -> bool:
+        """
+        Generates a photorealistic person wearing a suggested saree based on a text prompt.
+        Attempts Gemini first, then falls back to a high-quality FLUX-based engine.
+        """
+        api_key = settings.GEMINI_API_KEY
+        user_resolved = self._resolve_path(user_image_path)
+        
+        # Path 1: Primary - High Quality Gemini 2.0 (Identity Preservation)
+        if api_key:
+            try:
+                with open(user_resolved, "rb") as f:
+                    user_b64 = base64.b64encode(f.read()).decode()
+                user_mime = self._get_mime(user_resolved)
+
+                full_prompt = f"{prompt}. Photorealistic, front-facing orientation, matching person in reference."
+                payload = {
+                    "contents": [{
+                        "parts": [
+                            {"text": full_prompt},
+                            {"text": "Reference Image for Face alignment:"},
+                            {"inlineData": {"mimeType": user_mime, "data": user_b64}},
+                        ]
+                    }],
+                    "generationConfig": {"responseModalities": ["IMAGE"], "temperature": 0.5},
+                }
+                url = f"{GEMINI_BASE_URL}/gemini-2.0-flash-exp:generateContent?key={api_key}"
+                
+                async with httpx.AsyncClient(timeout=120.0) as client:
+                    resp = await client.post(url, json=payload)
+                
+                if resp.status_code == 200:
+                    data = resp.json()
+                    for cand in data.get("candidates", []):
+                        for part in cand.get("content", {}).get("parts", []):
+                            if "inlineData" in part and part["inlineData"].get("data"):
+                                img_bytes = base64.b64decode(part["inlineData"]["data"])
+                                with open(output_path, "wb") as f: f.write(img_bytes)
+                                img = Image.open(output_path).convert("RGB")
+                                self._smart_resize(img, CANVAS_W, CANVAS_H).save(output_path, "PNG")
+                                return True
+            except Exception as e:
+                logger.error(f"Gemini suggestion failed: {e}")
+
+        # Path 2: High-Quality Fallback - FLUX Engine + Identity Swap
+        # This creates actual saree textures and detailed draping even without keys
+        try:
+            from gradio_client import Client
+            logger.info("Initializing High-Quality Saree Designer (FLUX)...")
+            
+            client = Client("black-forest-labs/FLUX.1-schnell")
+            result = client.predict(
+                prompt=f"A photorealistic portrait of an Indian woman wearing a {prompt}, front-facing, hyper-detailed, masterpiece quality",
+                seed=0, width=768, height=1024, num_inference_steps=4, api_name="/infer"
+            )
+            
+            gen_path = result[0] if isinstance(result, (list, tuple)) else result
+            user_face = self._load_image(user_resolved)
+            generated_base = self._load_image(gen_path)
+            
+            if user_face and generated_base:
+                logger.info("Merging your face into the suggested saree...")
+                final_img = await self.face_swapper.swap_faces(source_img=user_face, target_img=generated_base)
+                final_img.save(output_path)
+                return True
+        except Exception as e:
+            logger.error(f"High-quality AI Suggestion failed: {e}")
+            
+        return False
 
 
 # Singleton

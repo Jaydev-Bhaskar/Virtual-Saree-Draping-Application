@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
-import { Layers, User, Image as ImageIcon, Box, LayoutDashboard, Plus, Lock } from 'lucide-react';
+import { Layers, User, Image as ImageIcon, Box, LayoutDashboard, Plus, Lock, Sparkles } from 'lucide-react';
 
 const Navbar = () => {
     const [user, setUser] = useState(JSON.parse(localStorage.getItem('user') || '{}'));

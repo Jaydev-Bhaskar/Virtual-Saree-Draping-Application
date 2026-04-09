@@ -8,6 +8,7 @@ import Inventory from './pages/Inventory';
 import Dashboard from './pages/Dashboard';
 import AdminInventory from './pages/AdminInventory';
 import AdminLogin from './pages/AdminLogin';
+import OccasionSuggestion from './pages/OccasionSuggestion';
 import ProtectedRoute from './components/ProtectedRoute';
 
 const Layout = () => {
