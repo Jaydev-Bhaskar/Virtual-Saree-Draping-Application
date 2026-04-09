@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { Lock, Mail, User, ArrowRight, Loader2 } from 'lucide-react';
+import { getApiUrl } from '../api';
 
 const Login = () => {
   const [isSignUP, setIsSignUp] = useState(false);
@@ -24,11 +25,10 @@ const Login = () => {
     setSuccessMsg('');
 
     try {
+      let data;
       if (isSignUP) {
-        // Create an automatic username from the email prefix
         const username = email.split('@')[0] + Math.floor(Math.random() * 1000);
-        
-        const response = await fetch('http://127.0.0.1:8000/api/v1/auth/signup', {
+        const response = await fetch(getApiUrl('/auth/signup'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -38,38 +38,48 @@ const Login = () => {
             password: password
           })
         });
-        
         if (!response.ok) {
           const errData = await response.json();
-          throw new Error(errData.detail || 'Failed to create account.');
+          let msg = errData.detail;
+          if (Array.isArray(msg)) {
+            msg = msg.map(e => `${e.loc[e.loc.length - 1]}: ${e.msg}`).join(', ');
+          }
+          throw new Error(msg || 'Failed to create account.');
         }
-        
-        const data = await response.json();
-        localStorage.setItem('access_token', data.access_token);
-        setSuccessMsg('Account created successfully!');
-        setTimeout(() => navigate('/collection'), 1000);
+        data = await response.json();
       } else {
-        // Login requires x-www-form-urlencoded
         const formData = new URLSearchParams();
-        formData.append('username', email); // Matches backend identifier
+        formData.append('username', email);
         formData.append('password', password);
-        
-        const response = await fetch('http://127.0.0.1:8000/api/v1/auth/login', {
+        const response = await fetch(getApiUrl('/auth/login'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
           body: formData
         });
-        
         if (!response.ok) {
           const errData = await response.json();
-          throw new Error(errData.detail || 'Invalid email or password.');
+          let msg = errData.detail;
+          if (Array.isArray(msg)) {
+            msg = msg.map(e => `${e.loc[e.loc.length - 1]}: ${e.msg}`).join(', ');
+          }
+          throw new Error(msg || 'Invalid email or password.');
         }
-        
-        const data = await response.json();
-        localStorage.setItem('access_token', data.access_token);
-        setSuccessMsg('Welcome back!');
-        setTimeout(() => navigate('/collection'), 1000);
+        data = await response.json();
       }
+
+      localStorage.setItem('token', data.access_token);
+      localStorage.setItem('user', JSON.stringify({
+        id: data.user_id,
+        username: data.username,
+        email: data.email,
+        full_name: data.full_name,
+        role: data.role
+      }));
+      setSuccessMsg(isSignUP ? 'Account created!' : 'Welcome back!');
+      setTimeout(() => {
+        if (data.role === 'admin') navigate('/admin');
+        else navigate('/inventory');
+      }, 1000);
     } catch (err) {
       setErrorMsg(err.message);
     } finally {
@@ -144,6 +154,7 @@ const Login = () => {
               <input 
                 type="password" 
                 required
+                minLength={8}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="form-input pl-10" 
@@ -151,6 +162,7 @@ const Login = () => {
                 style={{ paddingLeft: '40px' }} 
               />
             </div>
+            {isSignUP && <p className="text-[10px] text-muted m-0 mt-1">Minimum 8 characters required</p>}
           </div>
 
           {!isSignUP && (

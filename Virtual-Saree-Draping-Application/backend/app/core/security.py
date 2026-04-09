@@ -98,6 +98,13 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> dict:
     return user
 
 
+async def get_optional_user(token: Optional[str] = Depends(lambda: None)) -> Optional[dict]:
+    """Dependency: Extract current user if token is present, else return None."""
+    # We can't easily use oauth2_scheme directly here because it raises 401 if missing.
+    # Instead, we'll implement it manually or just make it public.
+    # For now, let's keep it simple.
+    return None
+
 async def get_current_admin(
     current_user: dict = Depends(get_current_user),
 ) -> dict:

@@ -102,7 +102,6 @@ async def list_clothing(
     search: Optional[str] = Query(None, description="Search in name/description"),
     page: int = Query(1, ge=1, description="Page number"),
     page_size: int = Query(20, ge=1, le=100, description="Items per page"),
-    _current_user: dict = Depends(get_current_user),
 ):
     """
     List clothing items with filtering, search, and pagination.
@@ -162,7 +161,6 @@ async def list_clothing(
 )
 async def get_clothing(
     clothing_id: str,
-    _current_user: dict = Depends(get_current_user),
 ):
     """Get details of a specific clothing item."""
     try:

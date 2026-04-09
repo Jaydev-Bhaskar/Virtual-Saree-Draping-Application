@@ -4,7 +4,7 @@
   "description": "Root package manager for Saree application",
   "scripts": {
     "dev:frontend": "cd Virtual-Saree-Draping-Application/frontend && npm run dev",
-    "dev:backend": "cd Virtual-Saree-Draping-Application/backend && ./venv2/Scripts/python.exe -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload",
+    "dev:backend": "cd Virtual-Saree-Draping-Application/backend && .\\venv2\\Scripts\\python.exe -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload",
     "dev": "npx concurrently \"npm run dev:backend\" \"npm run dev:frontend\""
   }
 }

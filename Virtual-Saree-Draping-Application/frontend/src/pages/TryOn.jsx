@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Upload, Sparkles, Image as ImageIcon, Loader2 } from 'lucide-react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, NavLink } from 'react-router-dom';
+import { getApiUrl, getAssetUrl } from '../api';
 
 const DEFAULT_MODELS = [
   { id: 1, name: 'Default Model 1', img: '/images/model1.png' },
@@ -42,24 +43,83 @@ const TryOn = () => {
   const location = useLocation();
   const passedSaree = location.state?.selectedSaree;
 
+  const transformItem = (item) => {
+    if (!item) return null;
+    return {
+        ...item,
+        img: item.img || getAssetUrl(item.image_url),
+        variants: item.variants || [
+            { name: 'Original', color: item.color || '#808080' },
+            { name: 'Contrast', color: '#ff4444' },
+            { name: 'Deep', color: '#333333' },
+            { name: 'Pastel', color: '#ffcc99' }
+        ]
+    };
+  };
+
   const [imageUploaded, setImageUploaded] = useState(null);
   const fileInputRef = React.useRef(null);
-  const [selectedSaree, setSelectedSaree] = useState(passedSaree || ALL_SAREES[0]);
+  const [items, setItems] = useState([]);
+  const [selectedSaree, setSelectedSaree] = useState(transformItem(passedSaree));
   const [generating, setGenerating] = useState(false);
   const [resultReady, setResultReady] = useState(false);
   const [finalImage, setFinalImage] = useState(null);
   const [sareeMask, setSareeMask] = useState(null);
   const [activeColor, setActiveColor] = useState(null);
   const [recoloredImage, setRecoloredImage] = useState(null);
-  const canvasRef = React.useRef(null);
+  const [showFeedback, setShowFeedback] = useState(false);
+  const [feedback, setFeedback] = useState({ rating: 5, comment: '' });
+  const [feedbackSent, setFeedbackSent] = useState(false);
+  
+  const token = localStorage.getItem('token');
+  const isAuthenticated = !!token;
 
   useEffect(() => {
-    if (passedSaree) {
-        // Ensure we have the variants from the local metadata
-        const enriched = ALL_SAREES.find(s => s.id === passedSaree.id) || passedSaree;
-        setSelectedSaree(enriched);
-    }
+    const fetchItems = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(getApiUrl('/clothing/'), {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        const data = await response.json();
+        const fetchedItems = (data.items || []).map(transformItem);
+        setItems(fetchedItems);
+        
+        if (passedSaree) {
+            const enriched = fetchedItems.find(s => String(s.id) === String(passedSaree.id)) || transformItem(passedSaree);
+            setSelectedSaree(enriched);
+        } else if (fetchedItems.length > 0) {
+            setSelectedSaree(fetchedItems[0]);
+        }
+      } catch (err) {
+          console.error("Failed to load collection", err);
+      }
+    };
+    fetchItems();
   }, [passedSaree]);
+
+  const handleFeedbackSubmit = async () => {
+    try {
+        const token = localStorage.getItem('token');
+        await fetch(getApiUrl('/feedback/'), {
+            method: 'POST',
+            headers: { 
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                clothing_id: selectedSaree.id,
+                rating: feedback.rating,
+                comment: feedback.comment
+            })
+        });
+        setFeedbackSent(true);
+    } catch (err) {
+        console.error("Feedback failed", err);
+    }
+  };
 
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
@@ -82,7 +142,7 @@ const TryOn = () => {
         formData.append('user_image', blob, 'user_photo.jpg');
         formData.append('saree_image_path', selectedSaree.img);
 
-        const response = await fetch('http://127.0.0.1:8000/api/v1/try-on/quick-swap', {
+        const response = await fetch(getApiUrl('/try-on/quick-swap'), {
             method: 'POST',
             body: formData,
         });
@@ -90,7 +150,7 @@ const TryOn = () => {
         if (!response.ok) throw new Error("Backend pipeline failed");
         
         const data = await response.json();
-        setFinalImage(`http://127.0.0.1:8000${data.url}`);
+        setFinalImage(getAssetUrl(data.url));
         setSareeMask(data.mask);
         setRecoloredImage(null);
         setActiveColor(null);
@@ -231,8 +291,8 @@ const TryOn = () => {
                     }}
                 >
                     <img 
-                        src={selectedSaree.img} 
-                        alt={selectedSaree.name} 
+                        src={selectedSaree?.img} 
+                        alt={selectedSaree?.name} 
                         style={{ 
                             height: '100%', width: '100%', objectFit: 'cover',
                             filter: activeColor ? `hue-rotate(0deg) saturate(1.2)` : 'none'
@@ -254,13 +314,13 @@ const TryOn = () => {
                 <>
                 <p className="text-sm text-muted mb-4">Select an apparel to try on:</p>
                 <div className="grid grid-cols-3 gap-4" style={{ maxHeight: '300px', overflowY: 'auto', paddingRight: '10px' }}>
-                {ALL_SAREES.map(s => (
+                {items.map(s => (
                     <div 
                     key={s.id} 
                     className="cursor-pointer transition"
                     style={{ 
                         height: '120px', borderRadius: 'var(--radius-sm)', overflow: 'hidden',
-                        border: selectedSaree.id === s.id ? '2px solid var(--primary-color)' : '2px solid transparent'
+                        border: selectedSaree?.id === s.id ? '2px solid var(--primary-color)' : '2px solid transparent'
                     }}
                     onClick={() => setSelectedSaree(s)}
                     >
@@ -272,7 +332,7 @@ const TryOn = () => {
             )}
             
             <div className="mt-4 p-3" style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 'var(--radius-sm)' }}>
-              <p className="gradient-text font-bold m-0">{selectedSaree.name}</p>
+              <p className="gradient-text font-bold m-0">{selectedSaree?.name || 'No Saree Selected'}</p>
             </div>
 
             {/* Color Customization - HIGH VISIBILITY UI */}
@@ -331,14 +391,22 @@ const TryOn = () => {
             )}
           </div>
 
-          <button 
-            className="btn btn-primary w-full" 
-            style={{ padding: '16px', fontSize: '1.2rem', boxShadow: '0 8px 30px rgba(121, 40, 202, 0.4)' }}
-            disabled={!imageUploaded || generating}
-            onClick={handleGenerate}
-          >
-            {generating ? <><Loader2 className="animate-spin" /> Processing AI Draping Engine...</> : <><Sparkles /> Generate Premium Try-On</>}
-          </button>
+          {isAuthenticated ? (
+              <button 
+                className="btn btn-primary w-full" 
+                style={{ padding: '16px', fontSize: '1.2rem', boxShadow: '0 8px 30px rgba(121, 40, 202, 0.4)' }}
+                disabled={!imageUploaded || generating}
+                onClick={handleGenerate}
+              >
+                {generating ? <><Loader2 className="animate-spin" /> Processing AI Draping Engine...</> : <><Sparkles /> Generate Premium Try-On</>}
+              </button>
+          ) : (
+              <div className="p-6 bg-primary-color/10 rounded-xl border border-primary-color/30 text-center animate-fade-in">
+                  <h4 className="mb-2 text-primary-color">AI Draping Locked</h4>
+                  <p className="text-sm mb-4">Please create an account or sign in to use our premium AI virtual try-on technology.</p>
+                  <NavLink to="/login" className="btn btn-primary w-full">Sign In to Generate</NavLink>
+              </div>
+          )}
         </div>
 
         {/* Right Column: Result */}
@@ -357,7 +425,7 @@ const TryOn = () => {
                         <img src={recoloredImage || finalImage} alt="Photorealistic Face Swap Output" style={{ objectFit: 'cover', width: '100%', height: '100%' }} />
                         ) : (
                         <>
-                            <img src={selectedSaree.img} alt="Photorealistic Saree Output" style={{ objectFit: 'cover', width: '100%', height: '100%', opacity: 0.5 }} />
+                            <img src={selectedSaree?.img} alt="Photorealistic Saree Output" style={{ objectFit: 'cover', width: '100%', height: '100%', opacity: 0.5 }} />
                             <div style={{
                             position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
                             display: 'flex', flexDirection: 'column', alignItems: 'center',
@@ -379,14 +447,48 @@ const TryOn = () => {
                         color: 'white', textAlign: 'center', fontWeight: 'bold',
                         zIndex: 10
                     }}>
-                        Face swapped seamlessly onto {selectedSaree.name}
+                        Face swapped seamlessly onto {selectedSaree?.name || 'Selected Saree'}
                     </div>
                     </div>
                 </div>
                 <div className="flex gap-4 p-6 w-full" style={{ borderTop: '1px solid var(--glass-border)', background: 'var(--card-bg)' }}>
                     <button className="btn btn-primary" style={{ flex: 1 }}>Download HD Render</button>
-                    <button className="btn btn-outline" style={{ flex: 1 }}>Save Look</button>
+                    <button className="btn btn-outline" style={{ flex: 1 }} onClick={() => setShowFeedback(true)}>Give Feedback</button>
                 </div>
+
+                {showFeedback && (
+                    <div className="p-6 animate-fade-in" style={{ background: 'rgba(255,255,255,0.02)', borderTop: '1px solid var(--glass-border)' }}>
+                        <h4 className="mb-4 gradient-text">Rate this Look</h4>
+                        {feedbackSent ? (
+                            <div className="text-center py-4 bg-green-500/10 rounded-lg border border-green-500/20 text-green-400">
+                                <p className="font-bold">✓ Feedback submitted! Thank you.</p>
+                            </div>
+                        ) : (
+                            <div className="flex flex-col gap-4">
+                                <div className="flex gap-2 justify-center">
+                                    {[1,2,3,4,5].map(num => (
+                                        <button 
+                                            key={num} 
+                                            className={`btn ${feedback.rating === num ? 'btn-primary' : 'btn-outline'}`}
+                                            style={{ minWidth: '40px', padding: '8px' }}
+                                            onClick={() => setFeedback({...feedback, rating: num})}
+                                        >
+                                            {num}
+                                        </button>
+                                    ))}
+                                </div>
+                                <textarea 
+                                    className="input" 
+                                    placeholder="Any comments on the fit or color?" 
+                                    style={{ height: '80px', padding: '10px' }}
+                                    value={feedback.comment}
+                                    onChange={e => setFeedback({...feedback, comment: e.target.value})}
+                                />
+                                <button className="btn btn-primary w-full" onClick={handleFeedbackSubmit}>Submit Review</button>
+                            </div>
+                        )}
+                    </div>
+                )}
                 </div>
             ) : (
                 <div className="text-center p-8 opacity-50 flex flex-col items-center justify-center h-full">
@@ -394,7 +496,7 @@ const TryOn = () => {
                     <>
                     <div className="relative mb-8">
                         <Loader2 size={100} className="animate-spin text-primary-color relative z-10" />
-                        <img src={selectedSaree.img} style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: '50%', position: 'absolute', top: '20px', left: '20px', opacity: 0.8 }} alt="target" />
+                        {selectedSaree && <img src={selectedSaree.img} style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: '50%', position: 'absolute', top: '20px', left: '20px', opacity: 0.8 }} alt="target" />}
                     </div>
                     <h3>AI Draping in Progress</h3>
                     <p>Analyzing body pose and fabric flow...</p>
@@ -403,7 +505,7 @@ const TryOn = () => {
                     <>
                     <Sparkles size={64} className="mb-4 mx-auto text-primary-color" style={{ opacity: 0.5 }} />
                     <h3>Your result will appear here</h3>
-                    <p>Upload your customer photo to visualize the <br/><b>{selectedSaree.name}</b> draped realistically.</p>
+                    <p>Upload your customer photo to visualize the <br/><b>{selectedSaree?.name || 'the selected saree'}</b> draped realistically.</p>
                     </>
                 )}
                 </div>

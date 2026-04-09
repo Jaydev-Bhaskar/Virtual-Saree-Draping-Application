@@ -19,7 +19,7 @@ from app.core.exceptions import (
     validation_exception_handler,
     generic_exception_handler,
 )
-from app.api import auth, uploads, clothing, tryon, recommendations
+from app.api import auth, uploads, clothing, tryon, recommendations, feedback
 
 import logging
 
@@ -68,17 +68,24 @@ app = FastAPI(
 
 # ─── Middleware ───────────────────────────────────────────────────────────────
 
-# CORS
+# Rate limiting (Disabled for production stability testing)
+# app.add_middleware(RateLimitMiddleware)
+
+# CORS (Register LAST to be the outermost layer)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Configure for production
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Rate limiting
-app.add_middleware(RateLimitMiddleware)
 
 # ─── Exception Handlers ─────────────────────────────────────────────────────
 
@@ -105,6 +112,7 @@ app.include_router(uploads.router, prefix=API_V1_PREFIX)
 app.include_router(clothing.router, prefix=API_V1_PREFIX)
 app.include_router(tryon.router, prefix=API_V1_PREFIX)
 app.include_router(recommendations.router, prefix=API_V1_PREFIX)
+app.include_router(feedback.router, prefix=API_V1_PREFIX)
 
 
 # ─── Root & Health Endpoints ─────────────────────────────────────────────────

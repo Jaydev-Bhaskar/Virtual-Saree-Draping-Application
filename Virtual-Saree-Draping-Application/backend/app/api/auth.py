@@ -92,6 +92,8 @@ async def signup(user_data: UserSignup):
         token_type="bearer",
         user_id=user_id,
         username=username,
+        email=email,
+        full_name=user_doc["full_name"],
         role="user",
     )
 
@@ -137,6 +139,8 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
         token_type="bearer",
         user_id=user_id,
         username=user["username"],
+        email=user["email"],
+        full_name=user.get("full_name", ""),
         role=user.get("role", "user"),
     )
 
@@ -216,5 +220,7 @@ async def create_admin(user_data: UserSignup):
         token_type="bearer",
         user_id=user_id,
         username=username,
+        email=email,
+        full_name=user_doc["full_name"],
         role="admin",
     )

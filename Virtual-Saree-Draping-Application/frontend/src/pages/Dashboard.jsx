@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { History, LayoutDashboard, Settings, LogOut, X, ShoppingBag } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -10,7 +10,26 @@ const MOCK_HISTORY = [
 
 const Dashboard = () => {
   const [selectedDetails, setSelectedDetails] = useState(null);
+  const [user, setUser] = useState({ username: 'User', email: 'user@example.com' });
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const savedUser = JSON.parse(localStorage.getItem('user') || '{}');
+    if (savedUser && savedUser.username) {
+      setUser(savedUser);
+    }
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    navigate('/login');
+    window.location.reload(); // Ensure state is cleared across app
+  };
+
+  const getInitials = (name) => {
+    return name ? name.substring(0, 2).toUpperCase() : 'US';
+  };
 
   return (
     <div className="animate-fade-in grid grid-cols-4 gap-8 relative">
@@ -18,16 +37,22 @@ const Dashboard = () => {
       <div className="col-span-1 glass-card" style={{ padding: '0', height: 'fit-content' }}>
         <div style={{ padding: '24px', borderBottom: '1px solid var(--glass-border)' }}>
           <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: 'linear-gradient(135deg, var(--primary-color), var(--secondary-color))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', fontWeight: 'bold', color: 'white', marginBottom: '16px' }}>
-            JD
+            {getInitials(user.full_name || user.username)}
           </div>
-          <h3 style={{ margin: 0 }}>John Doe</h3>
-          <p style={{ margin: 0, fontSize: '0.9rem' }}>john.doe@example.com</p>
+          <h3 style={{ margin: 0 }}>{user.full_name || user.username}</h3>
+          <p style={{ margin: 0, fontSize: '0.9rem', opacity: 0.8 }}>{user.email}</p>
         </div>
         <div className="flex flex-col p-4 gap-2">
           <button className="btn btn-primary" style={{ justifyContent: 'flex-start' }}><LayoutDashboard size={18}/> Overview</button>
           <button className="btn btn-outline" style={{ justifyContent: 'flex-start', border: 'none' }}><History size={18}/> Try-On History</button>
           <button className="btn btn-outline" style={{ justifyContent: 'flex-start', border: 'none' }}><Settings size={18}/> Settings</button>
-          <button className="btn btn-outline text-danger-color mt-4" style={{ justifyContent: 'flex-start', border: 'none', color: 'var(--danger-color)' }}><LogOut size={18}/> Logout</button>
+          <button 
+            className="btn btn-outline text-danger-color mt-4 logout-btn" 
+            style={{ justifyContent: 'flex-start', border: 'none', color: 'var(--danger-color)' }}
+            onClick={handleLogout}
+          >
+            <LogOut size={18}/> Logout
+          </button>
         </div>
       </div>
 
@@ -118,3 +143,4 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
+
