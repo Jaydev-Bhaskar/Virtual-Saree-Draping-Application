@@ -79,8 +79,10 @@ async def quick_swap(
     Directly triggers the new advanced MediaPipe and OpenCV Affine Face Swap pipeline.
     Standalone endpoint.
     """
-    # 1. Add FaceExtractor folder to path 
-    extractor_path = r"c:\Users\HP\Desktop\Avinython\FaceExtractor"
+    # 1. Add FaceExtractor folder to path (relative to backend, go up to project root)
+    backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    project_root = os.path.dirname(os.path.dirname(backend_dir))
+    extractor_path = os.path.join(project_root, "FaceExtractor")
     if extractor_path not in sys.path:
         sys.path.append(extractor_path)
         
