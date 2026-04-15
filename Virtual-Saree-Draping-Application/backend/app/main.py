@@ -103,6 +103,8 @@ app.mount(
     name="uploads",
 )
 
+from app.api import auth, uploads, clothing, tryon, recommendations, feedback, lookbook
+
 # ─── API Routes ──────────────────────────────────────────────────────────────
 
 API_V1_PREFIX = "/api/v1"
@@ -113,6 +115,7 @@ app.include_router(clothing.router, prefix=API_V1_PREFIX)
 app.include_router(tryon.router, prefix=API_V1_PREFIX)
 app.include_router(recommendations.router, prefix=API_V1_PREFIX)
 app.include_router(feedback.router, prefix=API_V1_PREFIX)
+app.include_router(lookbook.router, prefix=f"{API_V1_PREFIX}/lookbook", tags=["Lookbook"])
 
 
 # ─── Root & Health Endpoints ─────────────────────────────────────────────────

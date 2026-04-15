@@ -70,6 +70,33 @@ const TryOn = () => {
   const [showFeedback, setShowFeedback] = useState(false);
   const [feedback, setFeedback] = useState({ rating: 5, comment: '' });
   const [feedbackSent, setFeedbackSent] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
+
+  const handleSaveToHistory = async () => {
+      setIsSaving(true);
+      try {
+          const imageToSave = recoloredImage || finalImage;
+          const token = localStorage.getItem('token');
+          await fetch(getApiUrl('/try-on/save-history'), {
+              method: 'POST',
+              headers: { 
+                  'Authorization': `Bearer ${token}`,
+                  'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                  image_data: imageToSave,
+                  clothing_name: selectedSaree?.name || 'Custom Saree',
+                  clothing_id: selectedSaree?.id ? String(selectedSaree.id) : undefined
+              })
+          });
+          setIsSaved(true);
+      } catch (e) {
+          console.error("Failed to save to history", e);
+      } finally {
+          setIsSaving(false);
+      }
+  };
   
   const token = localStorage.getItem('token');
   const isAuthenticated = !!token;
@@ -154,6 +181,7 @@ const TryOn = () => {
         setSareeMask(data.mask);
         setRecoloredImage(null);
         setActiveColor(null);
+        setIsSaved(false);
     } catch (e) {
         console.error("Backend unavailable.", e);
         setFinalImage(null);
@@ -451,9 +479,17 @@ const TryOn = () => {
                     </div>
                     </div>
                 </div>
-                <div className="flex gap-4 p-6 w-full" style={{ borderTop: '1px solid var(--glass-border)', background: 'var(--card-bg)' }}>
-                    <button className="btn btn-primary" style={{ flex: 1 }}>Download HD Render</button>
-                    <button className="btn btn-outline" style={{ flex: 1 }} onClick={() => setShowFeedback(true)}>Give Feedback</button>
+                <div className="flex gap-4 p-6 w-full flex-wrap justify-between items-center" style={{ borderTop: '1px solid var(--glass-border)', background: 'var(--card-bg)' }}>
+                    <button 
+                        className={`btn ${isSaved ? 'btn-outline' : 'btn-primary'}`} 
+                        style={{ flex: 1, minWidth: '150px' }} 
+                        onClick={handleSaveToHistory}
+                        disabled={isSaving || isSaved}
+                    >
+                        {isSaving ? <Loader2 className="animate-spin inline-block mr-2" /> : isSaved ? '✓ Saved to Lookbook!' : 'Save to Lookbook'}
+                    </button>
+                    <button className="btn btn-outline" style={{ flex: 1, minWidth: '150px' }}>Download Render</button>
+                    <button className="btn btn-outline" style={{ flex: 1, minWidth: '150px' }} onClick={() => setShowFeedback(true)}>Give Feedback</button>
                 </div>
 
                 {showFeedback && (

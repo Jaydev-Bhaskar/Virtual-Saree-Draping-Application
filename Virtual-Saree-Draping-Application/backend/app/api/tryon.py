@@ -262,7 +262,6 @@ async def get_tryon_history(
     cursor = (
         database.db.tryon_results.find({
             "user_id": ObjectId(str(current_user["_id"])),
-            "type": "tryon",
         })
         .sort("created_at", -1)
         .limit(50)
@@ -270,17 +269,35 @@ async def get_tryon_history(
 
     history = await cursor.to_list(length=50)
 
-    return [
-        TryOnResponse(
+    responses = []
+    for doc in history:
+        # Check if it's a manual save (has generated_image_url at root, no results array)
+        results = doc.get("results", [])
+        if not results and doc.get("generated_image_url"):
+            # Construct a TryOnResult to satisfy schema
+            clothing_id_val = str(doc.get("clothing_id", ""))
+            if len(clothing_id_val) != 24:
+                clothing_id_val = "000000000000000000000000"
+                
+            results = [{
+                "clothing_id": clothing_id_val,
+                "clothing_name": doc.get("clothing_name", "Saved Look"),
+                "clothing_type": "saree",
+                "generated_image_url": doc.get("generated_image_url"),
+                "confidence_score": 1.0,
+                "processing_time_ms": 0
+            }]
+            
+        responses.append(TryOnResponse(
             id=str(doc["_id"]),
-            user_image_id=str(doc["user_image_id"]),
+            user_image_id=str(doc.get("user_image_id", "")),
             user_image_url=doc.get("user_image_url", ""),
-            results=[TryOnResult(**r) for r in doc.get("results", [])],
+            results=[TryOnResult(**r) for r in results],
             total_processing_time_ms=doc.get("total_processing_time_ms", 0),
             created_at=str(doc.get("created_at", "")),
-        )
-        for doc in history
-    ]
+        ))
+        
+    return responses
 
 
 @router.get(
@@ -354,3 +371,63 @@ async def delete_tryon_result(
         "message": "Try-on result deleted successfully",
         "id": tryon_id,
     }
+
+
+from pydantic import BaseModel
+from typing import Optional
+import uuid
+import base64
+
+class SaveHistoryRequest(BaseModel):
+    image_data: str
+    clothing_name: str
+    clothing_id: Optional[str] = None
+
+@router.post(
+    "/save-history",
+    status_code=status.HTTP_201_CREATED,
+    summary="Explicitly save a try-on result to user history",
+)
+async def save_history(
+    request: SaveHistoryRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    """Save an image (URL or Base64) manually to the user's try-on history for the Lookbook."""
+    image_url = request.image_data
+    
+    # Handle base64 image encoding if recolored locally by the browser
+    if request.image_data.startswith("data:image"):
+        try:
+            format_str, imgstr = request.image_data.split(';base64,') 
+            ext = format_str.split('/')[-1] 
+            filename = f"saved_look_{uuid.uuid4().hex}.{ext}"
+            out_dir = "uploads/tryon"
+            os.makedirs(out_dir, exist_ok=True)
+            filepath = os.path.join(out_dir, filename)
+            
+            with open(filepath, "wb") as f:
+                f.write(base64.b64decode(imgstr))
+            
+            image_url = f"/uploads/tryon/{filename}"
+        except Exception as e:
+            logger.error(f"Failed to process base64 image: {e}")
+            raise HTTPException(status_code=400, detail="Invalid image base64 data")
+    else:
+        # If it's a full URL, strip the domain and keep absolute path
+        if "http" in image_url:
+            parts = image_url.split("/uploads/")
+            if len(parts) > 1:
+                image_url = "/uploads/" + parts[1]
+
+    doc = {
+        "user_id": ObjectId(str(current_user["_id"])),
+        "generated_image_url": image_url,
+        "clothing_name": request.clothing_name,
+        "clothing_info": {"price": "Custom Look", "tags": ["Saved by User"]},
+        "clothing_id": ObjectId(request.clothing_id) if request.clothing_id and len(request.clothing_id) == 24 else None,
+        "type": "tryon",
+        "created_at": datetime.now(timezone.utc)
+    }
+    
+    await database.db.tryon_results.insert_one(doc)
+    return {"message": "Saved successfully to Lookbook history", "url": image_url}

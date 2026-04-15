@@ -9,6 +9,7 @@ import Dashboard from './pages/Dashboard';
 import AdminInventory from './pages/AdminInventory';
 import AdminLogin from './pages/AdminLogin';
 import OccasionSuggestion from './pages/OccasionSuggestion';
+import Lookbook from './pages/Lookbook';
 import ProtectedRoute from './components/ProtectedRoute';
 
 const Layout = () => {
@@ -30,6 +31,7 @@ function App() {
         <Route path="login" element={<Login />} />
         <Route path="admin/login" element={<AdminLogin />} />
         <Route path="inventory" element={<Inventory />} />
+        <Route path="shared/:shareId" element={<Lookbook />} />
         
         {/* Protected User Routes */}
         <Route path="try-on" element={<TryOn />} />

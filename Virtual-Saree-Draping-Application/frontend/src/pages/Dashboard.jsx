@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { History, LayoutDashboard, Settings, LogOut, X, ShoppingBag } from 'lucide-react';
+import { History, LayoutDashboard, Settings, LogOut, X, ShoppingBag, Share2, Check, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { getApiUrl, getAssetUrl } from '../api';
 
 const MOCK_HISTORY = [
   { id: 1, name: 'Crimson Banarasi Silk', date: 'Oct 20, 2023', price: '₹12,499', type: 'Saree', description: 'Experience the regal elegance of this authentic Crimson Banarasi Silk saree, featuring intricate gold zari work and a heavy border.', img: '/images/crimson_banarasi.png' },
@@ -11,6 +12,12 @@ const MOCK_HISTORY = [
 const Dashboard = () => {
   const [selectedDetails, setSelectedDetails] = useState(null);
   const [user, setUser] = useState({ username: 'User', email: 'user@example.com' });
+  const [history, setHistory] = useState([]);
+  const [recommendationsCount, setRecommendationsCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [selectedForLookbook, setSelectedForLookbook] = useState([]);
+  const [shareLink, setShareLink] = useState('');
+  const [isCreatingLookbook, setIsCreatingLookbook] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -18,18 +25,103 @@ const Dashboard = () => {
     if (savedUser && savedUser.username) {
       setUser(savedUser);
     }
+    Promise.all([fetchHistory(), fetchRecommendations()]);
   }, []);
+
+  const fetchHistory = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(getApiUrl('/tryon/history'), {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await response.json();
+      
+      const flatHistory = [];
+      if (Array.isArray(data)) {
+          data.forEach(item => {
+              const baseInfo = {
+                  session_id: item.id || item._id,
+                  created_at: item.created_at,
+                  user_image_url: item.user_image_url
+              };
+
+              if (item.results && Array.isArray(item.results)) {
+                  item.results.forEach(res => {
+                      flatHistory.push({ ...baseInfo, ...res, id: res.id || res.clothing_id || Math.random() });
+                  });
+              } else if (item.details) {
+                  flatHistory.push({ 
+                      ...baseInfo, 
+                      ...item.details, 
+                      generated_image_url: item.details.image_url,
+                      clothing_name: item.details.style || item.details.name,
+                      id: item.id || item._id 
+                  });
+              } else if (item.generated_image_url) {
+                  flatHistory.push({ ...baseInfo, ...item, id: item.id || item._id });
+              }
+          });
+      }
+      setHistory(flatHistory);
+    } catch (err) {
+      console.error("Failed to fetch history", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchRecommendations = async () => {
+      try {
+          const token = localStorage.getItem('token');
+          const response = await fetch(getApiUrl('/recommendations/latest'), {
+              headers: { 'Authorization': `Bearer ${token}` }
+          });
+          const data = await response.json();
+          setRecommendationsCount(data.length || 0);
+      } catch (err) {
+          setRecommendationsCount(0);
+      }
+  };
+
+  const toggleLookbookItem = (id) => {
+    setSelectedForLookbook(prev => 
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
+  const handleCreateLookbook = async () => {
+    if (selectedForLookbook.length === 0) return;
+    setIsCreatingLookbook(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(getApiUrl('/lookbook/'), {
+        method: 'POST',
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          result_ids: selectedForLookbook,
+          title: `${user.username}'s Curated Lookbook`
+        })
+      });
+      const data = await response.json();
+      setShareLink(window.location.origin + data.share_url);
+    } catch (err) {
+      console.error("Lookbook creation failed", err);
+    } finally {
+      setIsCreatingLookbook(false);
+    }
+  };
 
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     navigate('/login');
-    window.location.reload(); // Ensure state is cleared across app
+    window.location.reload();
   };
 
-  const getInitials = (name) => {
-    return name ? name.substring(0, 2).toUpperCase() : 'US';
-  };
+  const getInitials = (name) => name ? name.substring(0, 2).toUpperCase() : 'US';
 
   return (
     <div className="animate-fade-in grid grid-cols-4 gap-8 relative">
@@ -43,8 +135,18 @@ const Dashboard = () => {
           <p style={{ margin: 0, fontSize: '0.9rem', opacity: 0.8 }}>{user.email}</p>
         </div>
         <div className="flex flex-col p-4 gap-2">
-          <button className="btn btn-primary" style={{ justifyContent: 'flex-start' }}><LayoutDashboard size={18}/> Overview</button>
-          <button className="btn btn-outline" style={{ justifyContent: 'flex-start', border: 'none' }}><History size={18}/> Try-On History</button>
+          {selectedForLookbook.length > 0 && (
+              <button 
+                className="btn btn-primary mb-2 flex flex-col gap-1 items-center py-4" 
+                onClick={handleCreateLookbook}
+                disabled={isCreatingLookbook}
+              >
+                  <Share2 size={18} />
+                  <span>Share {selectedForLookbook.length} Selected Looks</span>
+              </button>
+          )}
+          <button className="btn btn-outline" style={{ justifyContent: 'flex-start', border: 'none' }}><LayoutDashboard size={18}/> Overview</button>
+          <button className="btn btn-primary" style={{ justifyContent: 'flex-start' }}><History size={18}/> Try-On History</button>
           <button className="btn btn-outline" style={{ justifyContent: 'flex-start', border: 'none' }}><Settings size={18}/> Settings</button>
           <button 
             className="btn btn-outline text-danger-color mt-4 logout-btn" 
@@ -58,42 +160,79 @@ const Dashboard = () => {
 
       {/* Main Content */}
       <div className="col-span-3">
-        <h2 className="mb-6">Recent <span className="gradient-text">Activity</span></h2>
+        {shareLink && (
+            <div className="glass-card mb-8 border-primary-color animate-scale-in flex items-center justify-between p-4" style={{ background: 'rgba(var(--primary-rgb), 0.1)' }}>
+                <div className="flex flex-col">
+                    <span className="text-xs uppercase font-bold text-primary-color mb-1">Your lookbook is live!</span>
+                    <code className="text-sm opacity-80">{shareLink}</code>
+                </div>
+                <button className="btn btn-primary btn-sm" onClick={() => {navigator.clipboard.writeText(shareLink); alert('Copied!')}}>Copy Link</button>
+            </div>
+        )}
+
+        <h2 className="mb-6">Virtual <span className="gradient-text">Lookbook</span></h2>
         
         <div className="grid grid-cols-3 gap-6 mb-8">
           <div className="glass-card">
-            <h3>12</h3>
+            <h3>{history.length}</h3>
             <p className="mb-0">Outfits Tried</p>
           </div>
           <div className="glass-card">
-            <h3>4</h3>
-            <p className="mb-0">Saved Looks</p>
+            <h3>{selectedForLookbook.length}</h3>
+            <p className="mb-0">Selected for Sharing</p>
           </div>
           <div className="glass-card">
-            <h3>2</h3>
-            <p className="mb-0">New Recommendations</p>
+            <h3>{recommendationsCount}</h3>
+            <p className="mb-0">AI Recommendations</p>
           </div>
         </div>
 
         <h3>Your Recent Try-Ons</h3>
-        <div className="grid grid-cols-3 gap-6 mt-4">
-          {MOCK_HISTORY.map((item) => (
-            <div key={item.id} className="glass-card flex flex-col p-4 shadow-sm">
-              <div className="img-wrapper mb-4" style={{ height: '200px' }}>
-                 <img src={item.img} alt={item.name} style={{ objectFit: 'cover', height: '100%', width: '100%' }} />
-              </div>
-              <p style={{ margin: 0, fontWeight: 'bold', fontSize: '1rem' }}>{item.name}</p>
-              <p style={{ marginBottom: '8px', fontSize: '0.9rem', opacity: 0.7 }}>{item.date}</p>
-              <button 
-                className="btn btn-outline" 
-                style={{ padding: '8px' }}
-                onClick={() => setSelectedDetails(item)}
-              >
-                View Detail
-              </button>
+        <p className="text-muted mb-4">Select the looks you want to share with friends.</p>
+
+        {loading ? (
+            <div className="py-20 text-center"><Loader2 className="animate-spin text-primary-color mx-auto" size={40}/></div>
+        ) : history.length === 0 ? (
+            <div className="glass-card p-12 text-center text-muted">No try-on history found. Visit the collection to start!</div>
+        ) : (
+            <div className="grid grid-cols-3 gap-6 mt-4">
+              {history.map((item) => (
+                <div 
+                    key={item.id || item._id} 
+                    className={`glass-card flex flex-col p-4 shadow-sm cursor-pointer transition-all ${selectedForLookbook.includes(item.id || item._id) ? 'border-primary-color ring-2 ring-primary-color/20 ring-offset-2 ring-offset-transparent' : 'hover:border-primary-color/50'}`}
+                    onClick={() => toggleLookbookItem(item.id || item._id)}
+                >
+                  <div className="img-wrapper mb-4 relative" style={{ height: '220px' }}>
+                     <img src={getAssetUrl(item.generated_image_url || item.img)} alt={item.clothing_name} style={{ objectFit: 'cover', height: '100%', width: '100%' }} />
+                     <div className={`absolute top-2 right-2 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${selectedForLookbook.includes(item.id || item._id) ? 'bg-primary-color border-primary-color' : 'bg-black/20 border-white/50'}`}>
+                         {selectedForLookbook.includes(item.id || item._id) && <Check size={14} className="text-white" />}
+                     </div>
+                  </div>
+                  <div className="flex justify-between items-start mb-2">
+                    <p style={{ margin: 0, fontWeight: 'bold', fontSize: '0.9rem' }}>{item.clothing_name || item.name}</p>
+                    <span className="text-xs opacity-60">Saree</span>
+                  </div>
+                  <div className="flex gap-2 mt-auto">
+                      <button 
+                        className="btn btn-outline flex-1 py-1.5 text-xs" 
+                        onClick={(e) => {e.stopPropagation(); setSelectedDetails(item)}}
+                      >
+                        Detail
+                      </button>
+                      <button 
+                        className="btn btn-primary flex-1 py-1.5 text-xs"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            navigate('/try-on', { state: { selectedSaree: item.clothing_info || item } });
+                        }}
+                      >
+                        Try Again
+                      </button>
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
+        )}
       </div>
 
       {/* Detail Modal */}
