@@ -7,6 +7,8 @@ import TryOn from './pages/TryOn';
 import Inventory from './pages/Inventory';
 import Dashboard from './pages/Dashboard';
 import AdminInventory from './pages/AdminInventory';
+import AdminDashboard from './pages/AdminDashboard';
+import AdminFeedback from './pages/AdminFeedback';
 import AdminLogin from './pages/AdminLogin';
 import OccasionSuggestion from './pages/OccasionSuggestion';
 import Lookbook from './pages/Lookbook';
@@ -45,6 +47,16 @@ function App() {
         <Route path="admin" element={
           <ProtectedRoute adminOnly={true}>
             <AdminInventory />
+          </ProtectedRoute>
+        } />
+        <Route path="admin/dashboard" element={
+          <ProtectedRoute adminOnly={true}>
+            <AdminDashboard />
+          </ProtectedRoute>
+        } />
+        <Route path="admin/feedback" element={
+          <ProtectedRoute adminOnly={true}>
+            <AdminFeedback />
           </ProtectedRoute>
         } />
       </Route>

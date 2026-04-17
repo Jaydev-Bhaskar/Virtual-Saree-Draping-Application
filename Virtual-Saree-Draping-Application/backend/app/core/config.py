@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     APP_NAME: str = "Virtual Fashion Try-On"
     APP_VERSION: str = "1.0.0"
     DEBUG: bool = False
+    HF_TOKEN: Optional[str] = None
 
     # MongoDB
     MONGODB_URL: str = "mongodb://localhost:27017"

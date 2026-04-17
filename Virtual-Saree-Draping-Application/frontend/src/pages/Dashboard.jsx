@@ -31,7 +31,7 @@ const Dashboard = () => {
   const fetchHistory = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(getApiUrl('/tryon/history'), {
+      const response = await fetch(getApiUrl('/try-on/history'), {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await response.json();
@@ -247,17 +247,17 @@ const Dashboard = () => {
             </button>
             
             <div style={{ flex: '1.2', borderRadius: 'var(--radius-md)', overflow: 'hidden', height: '450px', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
-              <img src={selectedDetails.img} alt={selectedDetails.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              <img src={getAssetUrl(selectedDetails.generated_image_url || selectedDetails.img)} alt={selectedDetails.clothing_name || selectedDetails.name} style={{ width: '100%', height: '100%', objectFit: 'contain', backgroundColor: '#000' }} />
             </div>
 
             <div style={{ flex: '1', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
               <p style={{ color: 'var(--primary-color)', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '2px', fontSize: '0.8rem', marginBottom: '0.5rem' }}>History Entry</p>
-              <h2 className="gradient-text mb-2" style={{ fontSize: '2rem' }}>{selectedDetails.name}</h2>
-              <p style={{ color: 'var(--text-main)', fontSize: '1.4rem', fontWeight: 'bold', marginBottom: '1.5rem' }}>{selectedDetails.price}</p>
+              <h2 className="gradient-text mb-2" style={{ fontSize: '2rem' }}>{selectedDetails.clothing_name || selectedDetails.name || 'Saved Look'}</h2>
+              <p style={{ color: 'var(--text-main)', fontSize: '1.4rem', fontWeight: 'bold', marginBottom: '1.5rem' }}>{selectedDetails.clothing_info?.price || selectedDetails.price || 'Priceless Look'}</p>
               
               <div style={{ background: 'rgba(255,255,255,0.03)', padding: '1.5rem', borderRadius: 'var(--radius-sm)', marginBottom: '2rem', borderLeft: '3px solid var(--primary-color)' }}>
-                <p style={{ margin: 0, color: 'var(--text-main)', lineHeight: '1.6', fontSize: '0.95rem' }}>{selectedDetails.description}</p>
-                <p style={{ marginTop: '1rem', fontSize: '0.8rem', opacity: 0.5 }}>Tried on: {selectedDetails.date}</p>
+                <p style={{ margin: 0, color: 'var(--text-main)', lineHeight: '1.6', fontSize: '0.95rem' }}>{selectedDetails.description || 'You created this custom look using the Virtual Draping Studio.'}</p>
+                <p style={{ marginTop: '1rem', fontSize: '0.8rem', opacity: 0.5 }}>Tried on: {selectedDetails.date || new Date(selectedDetails.created_at).toLocaleDateString()}</p>
               </div>
 
               <div className="flex gap-4">

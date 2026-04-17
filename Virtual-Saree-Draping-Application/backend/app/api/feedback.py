@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, status, Depends
+from typing import List
 from app.core.database import database
-from app.core.security import get_current_user
+from app.core.security import get_current_user, get_current_admin
 from app.schemas.feedback import FeedbackCreate, FeedbackResponse, FeedbackListResponse
 from bson import ObjectId
 from datetime import datetime, timezone
@@ -62,3 +63,23 @@ async def get_saree_feedback(clothing_id: str):
         average_rating=round(avg_rating, 1),
         total_count=total
     )
+
+@router.get("/all/console", response_model=List[FeedbackResponse])
+async def get_all_feedback_for_admin(
+    admin: dict = Depends(get_current_admin)
+):
+    """Admin only: Retrieve all platform feedback for review console."""
+    cursor = database.db.feedback.find().sort("created_at", -1)
+    feedbacks = await cursor.to_list(length=500)
+    
+    return [
+        FeedbackResponse(
+            id=str(f["_id"]),
+            user_id=str(f["user_id"]),
+            username=f["username"],
+            clothing_id=str(f["clothing_id"]),
+            rating=f["rating"],
+            comment=f.get("comment"),
+            created_at=str(f["created_at"])
+        ) for f in feedbacks
+    ]

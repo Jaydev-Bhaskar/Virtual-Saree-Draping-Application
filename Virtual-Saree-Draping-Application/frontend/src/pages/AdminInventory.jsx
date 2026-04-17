@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Edit2, Upload, X, Check, Loader2 } from 'lucide-react';
+import { Plus, Trash2, Edit2, Upload, X, Check, Loader2, LayoutDashboard } from 'lucide-react';
+import { NavLink } from 'react-router-dom';
 import { getApiUrl, getAssetUrl } from '../api';
 
 const AdminInventory = () => {
@@ -125,9 +126,14 @@ const AdminInventory = () => {
                     <h2 className="m-0">Manage <span className="gradient-text">Collection</span></h2>
                     <p className="text-muted m-0">Add or remove sarees from the digital inventory</p>
                 </div>
-                <button className="btn btn-primary flex items-center gap-2" onClick={() => setShowAddModal(true)}>
-                    <Plus size={20} /> Add New Saree
-                </button>
+                <div className="flex gap-4">
+                    <NavLink to="/admin/dashboard" className="btn btn-outline flex items-center gap-2">
+                        <LayoutDashboard size={20} /> View Analytics
+                    </NavLink>
+                    <button className="btn btn-primary flex items-center gap-2" onClick={() => setShowAddModal(true)}>
+                        <Plus size={20} /> Add New Saree
+                    </button>
+                </div>
             </div>
 
             <div className="grid grid-cols-1 gap-4">

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
-import { Layers, User, Image as ImageIcon, Box, LayoutDashboard, Plus, Lock, Sparkles } from 'lucide-react';
+import { Layers, User, Image as ImageIcon, Box, LayoutDashboard, Plus, Lock, Sparkles, MessageSquare } from 'lucide-react';
 
 const Navbar = () => {
     const [user, setUser] = useState(JSON.parse(localStorage.getItem('user') || '{}'));
@@ -48,13 +48,21 @@ const Navbar = () => {
                         </NavLink>
                         
                         {isAdmin ? (
-                           <NavLink to="/admin" className={({ isActive }) => `nav-link flex items-center gap-2 ${isActive ? 'active' : ''}`} style={{ color: 'var(--secondary-color)', fontWeight: 'bold' }}>
-                               <Plus size={18} /> Add Saree
-                           </NavLink>
+                            <>
+                                <NavLink to="/admin" className={({ isActive }) => `nav-link flex items-center gap-2 ${isActive ? 'active' : ''}`} style={{ color: 'var(--secondary-color)', fontWeight: 'bold' }}>
+                                    <Plus size={18} /> Add Saree
+                                </NavLink>
+                                <NavLink to="/admin/dashboard" className={({ isActive }) => `nav-link flex items-center gap-2 ${isActive ? 'active' : ''}`} style={{ color: 'var(--primary-color)', fontWeight: 'bold' }}>
+                                    <LayoutDashboard size={18} /> Analytics
+                                </NavLink>
+                                <NavLink to="/admin/feedback" className={({ isActive }) => `nav-link flex items-center gap-2 ${isActive ? 'active' : ''}`} style={{ color: 'var(--primary-color)', opacity: 0.8 }}>
+                                    <MessageSquare size={18} /> Feedbacks
+                                </NavLink>
+                            </>
                         ) : (
-                           <NavLink to="/dashboard" className={({ isActive }) => `nav-link flex items-center gap-2 ${isActive ? 'active' : ''}`}>
-                               <LayoutDashboard size={18} /> My Dashboard
-                           </NavLink>
+                            <NavLink to="/dashboard" className={({ isActive }) => `nav-link flex items-center gap-2 ${isActive ? 'active' : ''}`}>
+                                <LayoutDashboard size={18} /> My Dashboard
+                            </NavLink>
                         )}
                     </>
                 )}
